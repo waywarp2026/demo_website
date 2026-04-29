@@ -10,153 +10,118 @@
 <body>
   <main>
     <h1>WAYWARP: Physical-World Waypoint Hijacking Attack against VLM-Based Autonomous Driving</h1>
-
-    <p class="subtitle">Submitted to ACM CCS 2026 Anonymous</p>
+    <p class="subtitle">Anonymous submission to ACM CCS 2026</p>
 
     <section>
       <h2>Abstract</h2>
       <p>
-        Vision-language models are increasingly used to build modular autonomous driving systems that first describe the scene, then infer a driving intent, and finally predict future control waypoints. Although this staged design improves interpretability, it also exposes a reasoning-chain attack surface. This website presents WayWarp, a physical-world visual attack framework that injects targeted semantic errors into the scene-description stage and causes the downstream planner to generate attacker-specified waypoint behaviors.
+        Vision-language models are increasingly used to build modular autonomous driving systems that first describe the scene, then infer a driving intent, and finally predict future control waypoints. Although this staged design improves interpretability, it also exposes a reasoning-chain attack surface. WayWarp is a physical-world visual attack framework that injects target-consistent semantic errors into the scene-description stage and causes the downstream planner to generate attacker-specified waypoint behaviors.
       </p>
       <p>
-        Unlike attacks that only aim to degrade accuracy, WayWarp targets concrete future behaviors, including unintended left steering, unintended right steering, and unintended deceleration. The attack keeps the final output syntactically valid while shifting the predicted speed-curvature sequence toward the attacker-selected region. We evaluate the attack across diverse road contexts, multiple VLM backbones, physical recapture settings, and input-preprocessing defenses.
+        Unlike attacks that only reduce accuracy, WayWarp targets concrete future behaviors, including unintended left steering, unintended right steering, and unintended deceleration. The attack keeps the final output syntactically valid while shifting the predicted speed-curvature sequence toward an attacker-chosen behavior region. We evaluate the attack across diverse road contexts, multiple VLM backbones, physical recapture settings, and input-preprocessing defenses.
       </p>
     </section>
 
     <section>
       <h2>Introduction</h2>
-      <figure>
-        <img src="assets/attack_overview.png" alt="Overview of the WayWarp attack scenario">
-        <figcaption>Figure 1: Overview of the WayWarp attack scenario.</figcaption>
-      </figure>
+      <div class="image-row two intro-row">
+        <figure>
+          <img src="assets/before_attack.png" alt="Autonomous vehicle before the attack">
+        </figure>
+        <figure>
+          <img src="assets/after_attack.png" alt="Autonomous vehicle after the attack">
+        </figure>
+      </div>
+      <div class="shared-caption">Figure 1: Illustration of the attack scenario: an autonomous vehicle initially follows the advertising vehicle normally but produces a persistent left-steering decision after observing the adversarial patch.</div>
       <p>
-        Modern VLM-based driving systems often expose intermediate natural-language reasoning states. These states are useful for debugging and safety inspection, but they can also become part of the attack path. WayWarp studies whether a camera-visible physical trigger can corrupt early semantic reasoning and make the resulting error propagate into the final waypoint sequence.
-      </p>
-      <p>
-        The core observation is that the final control prediction is not determined only by visual geometry. Once an incorrect semantic cue enters the reasoning chain, later intent and control stages may treat it as valid context. WayWarp exploits this property to realize behavior-level waypoint hijacking rather than random prediction failure.
+        WayWarp studies whether a camera-visible physical trigger can corrupt the semantic reasoning chain of a modular VLM-based driving system and then propagate into the final waypoint output. The attack goal is not random failure, but a targeted future driving behavior that remains temporally coherent over multiple predicted steps.
       </p>
     </section>
 
     <section>
-      <h2>Threat Model</h2>
-      <div class="image-row three">
-        <figure>
-          <img src="assets/scene1.png" alt="Mobile advertising vehicle scene example 1">
-          <figcaption>Scene 1</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/scene2.png" alt="Mobile advertising vehicle scene example 2">
-          <figcaption>Scene 2</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/scene3.png" alt="Mobile advertising vehicle scene example 3">
-          <figcaption>Scene 3</figcaption>
-        </figure>
-      </div>
+      <h2>Overview</h2>
+      <figure class="wide-figure">
+        <img src="assets/attack_overview.png" alt="Overview of WayWarp">
+        <figcaption>Figure 2: Overview of WayWarp. The attacker first collects scene data, selects an attack mode, and optimizes the adversarial patch offline. At inference time, the patch enters the front-view frame, propagates through the three-stage VLM reasoning chain, and hijacks the final waypoint prediction.</figcaption>
+      </figure>
       <p>
-        We consider an external physical-world attacker who can place camera-visible content in front of or near the victim vehicle. A realistic example is a mobile advertising vehicle whose screen displays ordinary-looking content containing a few adversarial frames. The attacker does not compromise the vehicle software, network, model weights, or non-visual sensors.
-      </p>
-      <p>
-        The attack goal is to induce a specific unsafe future behavior while keeping the generated waypoint sequence normal in format. We study three behavior targets: unintended left steering, unintended right steering, and unintended deceleration.
+        The victim pipeline first produces a scene description, then infers a driving intent, and finally predicts future waypoints. WayWarp exploits this cascading structure by making the early semantic stage produce target-consistent but incorrect reasoning cues, which are then accepted by downstream stages as valid context.
       </p>
     </section>
 
     <section>
       <h2>System Design</h2>
-      <figure>
+      <figure class="wide-figure">
         <img src="assets/network.png" alt="Optimization pipeline of WayWarp">
-        <figcaption>Figure 2: Optimization pipeline of WayWarp.</figcaption>
+        <figcaption>Figure 3: Optimization pipeline of WayWarp.</figcaption>
       </figure>
       <p>
-        WayWarp optimizes a visual trigger over pre-collected frames from the target road segment. For each frame, the victim pipeline produces a scene description, a driving intent, and a final sequence of future waypoints. The optimization objective combines semantic guidance at the scene-description stage, behavior supervision at the waypoint stage, anchor-guided visual constraints, and patch-level regularization.
-      </p>
-      <p>
-        To improve physical robustness, the patch is optimized under expectation over transformation. The transformations model changes in scale, position, brightness, camera recapture, and viewing conditions. The resulting trigger is then evaluated by inserting it into the victim camera view and checking whether the final waypoints enter the target behavior region.
+        WayWarp optimizes a physical patch over pre-collected frames from the target road segment. The objective combines semantic guidance at the scene-description stage, behavior supervision at the waypoint stage, anchor-guided visual constraints, and patch regularization. To improve physical robustness, the optimization uses expectation over transformation to model changes in scale, position, brightness, and camera recapture conditions.
       </p>
     </section>
 
     <section>
       <h2>Evaluation Setup</h2>
       <p>
-        We evaluate WayWarp on staged VLM-based driving pipelines instantiated with Qwen2.5-VL-7B, Qwen2.5-VL-3B, and LLaMA3.2-Vision-11B. The large-scale evaluation covers six road-context groups, including left-turn, right-turn, and straight-driving scenes with and without intersections. The target curvature values cover mild to aggressive steering settings, and slowdown attacks are measured by future distance reduction.
-      </p>
-      <p>
-        The evaluation focuses on attack success rate, waypoint validity, curvature and speed shift, cross-model transfer, physical recapture robustness, ablation effects, and defense behavior under input preprocessing.
+        We evaluate WayWarp on staged VLM-based driving pipelines instantiated with Qwen2.5-VL-7B, Qwen2.5-VL-3B, and LLaMA3.2-Vision-11B. The large-scale evaluation covers six road-context groups, including left-turn, right-turn, and straight-driving scenes with and without intersections. Steering attacks are evaluated over multiple target curvature levels, and slowdown attacks are evaluated by future distance reduction.
       </p>
     </section>
 
     <section>
       <h2>Experimental Results</h2>
 
-      <h3>Temporal Response</h3>
+      <h3>Temporal Trigger Response</h3>
       <figure>
-        <img src="assets/exp1.png" alt="Temporal trigger response under patch insertion">
-        <figcaption>Figure 3: Predicted curvature before, during, and after trigger insertion.</figcaption>
+        <img src="assets/exp1.png" alt="Predicted curvature before, during, and after patch insertion">
+        <figcaption>Figure 4: Average predicted curvature before, during, and after patch insertion.</figcaption>
       </figure>
-      <p>
-        The predicted curvature changes toward the target turning behavior when the trigger is visible and returns toward the clean behavior after the trigger is removed. This result indicates that the attack is tied to the visual trigger rather than a persistent prompt or state artifact.
-      </p>
 
-      <h3>Large-Scale Attack Success</h3>
+      <h3>Large-Scale Steering and Slowdown Results</h3>
       <div class="image-row two">
-        <figure>
-          <img src="assets/asr_left_intersection.png" alt="Attack success rate in a left-turn intersection setting">
-          <figcaption>Figure 4: Example attack success rate under a left-turn intersection setting.</figcaption>
-        </figure>
         <figure>
           <img src="assets/curvature_before_after.png" alt="Trajectory curvature before and after attack">
-          <figcaption>Figure 5: Curvature before and after attack.</figcaption>
+          <figcaption>Figure 5: Trajectory curvature before vs. after attack.</figcaption>
         </figure>
-      </div>
-      <p>
-        Across road contexts and target settings, WayWarp shifts the final waypoint sequence toward the selected behavior region. Steering attacks produce consistent curvature changes, while slowdown attacks reduce the predicted forward progress over the planning horizon.
-      </p>
-
-      <h3>Slowdown and Transfer Results</h3>
-      <div class="image-row two">
         <figure>
           <img src="assets/slowdown_asr_distance.png" alt="Slowdown attack result">
-          <figcaption>Figure 6: Slowdown attack success rate and distance reduction.</figcaption>
-        </figure>
-        <figure>
-          <img src="assets/transfer_matrix.png" alt="Cross-model transfer matrix">
-          <figcaption>Figure 7: Cross-model transfer results.</figcaption>
+          <figcaption>Figure 6: Slowdown attack: ASR and distance reduction.</figcaption>
         </figure>
       </div>
-      <p>
-        The transfer experiment suggests that the attack is not limited to a single backbone. Although white-box optimization remains the strongest setting, transfer remains observable across Qwen2.5-VL and LLaMA3.2-Vision variants.
-      </p>
 
-      <h3>Ablation and Defense</h3>
-      <div class="image-row two">
+      <h3>Ablation, Transfer, and Defense</h3>
+      <div class="image-row three compact-row">
         <figure>
           <img src="assets/ablation_cascading.png" alt="Ablation study of cascading optimization">
-          <figcaption>Figure 8: Ablation study of the cascading objective.</figcaption>
+          <figcaption>Figure 7: Ablation study.</figcaption>
         </figure>
         <figure>
-          <img src="assets/defense_preprocessing.png" alt="Input preprocessing defense result">
-          <figcaption>Figure 9: Input-preprocessing defense results.</figcaption>
+          <img src="assets/transfer_matrix.png" alt="Cross-model transfer results">
+          <figcaption>Figure 8: Cross-model transferability.</figcaption>
+        </figure>
+        <figure>
+          <img src="assets/defense_preprocessing.png" alt="Input-preprocessing defense results">
+          <figcaption>Figure 9: Input-preprocessing defenses.</figcaption>
         </figure>
       </div>
       <p>
-        The ablation study shows that optimizing only one stage is less reliable than jointly guiding the semantic and waypoint stages. Input preprocessing can reduce attack success in non-adaptive settings, but it is not a complete defense because it may degrade clean perception and can be included in adaptive optimization.
+        The experiments show that WayWarp can consistently shift the final waypoint sequence toward attacker-selected behavior regions. The ablation study shows that the cascading objective is important, cross-model transfer remains observable across different VLM backbones, and common input-preprocessing defenses reduce but do not eliminate the attack in the non-adaptive setting.
       </p>
     </section>
 
     <section>
       <h2>Physical Validation</h2>
-      <div class="image-row two">
+      <div class="image-row two physical-row">
         <figure>
           <img src="assets/patch_outdoor.jpg" alt="Printed patch setting">
-          <figcaption>Figure 10: Printed patch setting.</figcaption>
+          <figcaption>Figure 10(a): Printed patch setting.</figcaption>
         </figure>
         <figure>
-          <img src="assets/screen.jpg" alt="Screen-display patch setting">
-          <figcaption>Figure 11: Screen-display setting.</figcaption>
+          <img src="assets/screen.jpg" alt="Screen-display setting">
+          <figcaption>Figure 10(b): Screen-display setting.</figcaption>
         </figure>
       </div>
       <p>
-        We evaluate whether the visual trigger remains effective after physical recapture. The printed-patch setting tests paper-based deployment, while the screen-display setting is closer to the mobile advertising vehicle threat model. The screen setting preserves the trigger more effectively and better matches the intended attack surface.
+        We further validate whether the patch remains effective after real camera capture. The printed setting evaluates paper-based deployment, while the screen-display setting matches the LED-display threat model more closely and preserves the optimized color and texture patterns more reliably.
       </p>
     </section>
 
@@ -166,18 +131,8 @@
         The released artifact is intended for offline review and reproducibility. It includes evaluation scripts, configuration templates, plotting scripts, and instructions for obtaining required third-party models and datasets.
       </p>
       <p>
-        For safety reasons, we do not release optimized physical attack patches, deployment-ready trigger videos, real-world attack instructions, or materials that directly enable misuse. The public website and artifact focus on scientific evaluation, defensive understanding, and reproducibility of non-deployment experiments.
+        For safety reasons, we do not release optimized physical attack patches, deployment-ready trigger videos, or materials that directly enable misuse.
       </p>
-    </section>
-
-    <section>
-      <h2>Conclusion</h2>
-      <ul>
-        <li>WayWarp identifies waypoint hijacking as a reasoning-chain security issue in modular VLM-based autonomous driving.</li>
-        <li>The attack targets specific future speed-curvature behaviors rather than arbitrary prediction errors.</li>
-        <li>The evaluation covers multiple road contexts, VLM backbones, physical recapture settings, and input-preprocessing defenses.</li>
-        <li>The results suggest that defenses should check temporal, physical, behavioral, and cross-modal consistency rather than relying only on input transformations.</li>
-      </ul>
     </section>
   </main>
 </body>
