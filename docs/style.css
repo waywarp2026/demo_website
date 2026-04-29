@@ -1,0 +1,41 @@
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f7f8fa;
+  color: #222;
+  line-height: 1.6;
+}
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  background: #fff;
+}
+
+h1 {
+  font-size: 34px;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #555;
+  font-size: 18px;
+  margin-bottom: 36px;
+}
+
+section {
+  margin-top: 36px;
+}
+
+h2 {
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 8px;
+}
+
+.figure {
+  width: 100%;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
